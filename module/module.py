@@ -204,6 +204,7 @@ class Webui_broker(BaseModule, Daemon):
         self.datamgr = datamgr
         datamgr.load(self.rg)
         self.helper = helper
+	self.config_parser = config_parser
 
         self.request = request
         self.response = response
