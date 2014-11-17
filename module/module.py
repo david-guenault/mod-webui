@@ -81,7 +81,7 @@ def get_instance(plugin):
     bottle.TEMPLATE_PATH.append(os.path.join(webuimod_dir, 'views'))
     bottle.TEMPLATE_PATH.append(webuimod_dir)
 
-    print "Get a WebUI instancefor plugin %s" % plugin.get_name()
+    logger.debug("Get a WebUI instancefor plugin %s" % plugin.get_name())
 
     instance = Webui_broker(plugin)
     return instance
@@ -121,11 +121,11 @@ class Webui_broker(BaseModule, Daemon):
 
         self.share_dir = getattr(modconf, 'share_dir', 'share')
         self.share_dir = os.path.abspath(self.share_dir)
-        print "SHARE DIR IS" * 10, self.share_dir
+        logger.debug("SHARE DIR IS" * 10, self.share_dir)
         # Load the photo dir and make it a absolute path
         self.photo_dir = getattr(modconf, 'photo_dir', 'photos')
         self.photo_dir = os.path.abspath(self.photo_dir)
-        print "Webui: using the backend", self.http_backend
+        logger.debug("Webui: using the backend", self.http_backend)
 
         self.embeded_graph = to_bool(getattr(modconf, 'embeded_graph', '0'))
 
@@ -145,20 +145,20 @@ class Webui_broker(BaseModule, Daemon):
     
     # We check if the photo directory exists. If not, try to create it
     def check_photo_dir(self):
-        print "Checking photo path", self.photo_dir
+        logger.debug("Checking photo path", self.photo_dir)
         if not os.path.exists(self.photo_dir):
-            print "Truing to create photo dir", self.photo_dir
+            logger.debug("Truing to create photo dir", self.photo_dir)
             try:
                 os.mkdir(self.photo_dir)
             except Exception, exp:
-                print "Photo dir creation failed", exp
+                logger.debug("Photo dir creation failed", exp)
 
 
     # Called by Broker so we can do init stuff
     # TODO: add conf param to get pass with init
     # Conf from arbiter!
     def init(self):
-        print "Init of the Webui '%s'" % self.name
+        logger.debug("Init of the Webui '%s'" % self.name)
         self.rg.load_external_queue(self.from_q)
 
 
@@ -168,7 +168,7 @@ class Webui_broker(BaseModule, Daemon):
     # will be in another process, so we will be able to hack objects
     # if need)
     def hook_pre_scheduler_mod_start(self, sched):
-        print "pre_scheduler_mod_start::", sched.__dict__
+        logger.debug("pre_scheduler_mod_start::", sched.__dict__)
         self.rg.load_from_scheduler(sched)
 
 
@@ -197,7 +197,7 @@ class Webui_broker(BaseModule, Daemon):
 
 
         for s in self.debug_output:
-            print s
+            logger.debug(s)
         del self.debug_output
 
         self.check_photo_dir()
@@ -225,7 +225,7 @@ class Webui_broker(BaseModule, Daemon):
     # A plugin send us en external command. We just put it
     # in the good queue
     def push_external_command(self, e):
-        print "WebUI: got an external command", e.__dict__
+        logger.debug("WebUI: got an external command", e.__dict__)
         self.from_q.put(e)
 
 
@@ -233,7 +233,7 @@ class Webui_broker(BaseModule, Daemon):
     def do_main(self):
         # I register my exit function
         self.set_exit_handler()
-        print "Go run"
+        logger.debug("Go run")
 
         # We ill protect the operations on
         # the non read+write with a lock and
@@ -278,7 +278,7 @@ class Webui_broker(BaseModule, Daemon):
         # just call for a select with q._reader, the underlying file
         # handle of the Queue()? That's just because under Windows, select
         # only manage winsock (so network) file descriptor! What a shame!
-        print "Starting WebUI application"
+        logger.debug("Starting WebUI application")
         srv = run(host=self.host, port=self.port, server=self.http_backend, **self.serveropts)
 
         # ^ IMPORTANT ^
@@ -297,16 +297,16 @@ class Webui_broker(BaseModule, Daemon):
         # DBG: time_waiting_no_readers = 0
         # DBG: time_preparing = 0
 
-        print "Data thread started"
+        logger.debug("Data thread started")
 
 
         
         while True:
             # DBG: t0 = time.time()
-            # DBG: print "WEBUI :: GET START"
+            # DBG: logger.debug("WEBUI :: GET START")
             l = self.to_q.get()
             # DBG: t1 = time.time()
-            # DBG: print "WEBUI :: GET FINISH with", len(l), "in ", t1 - t0
+            # DBG: logger.debug("WEBUI :: GET FINISH with", len(l), "in ", t1 - t0)
 
             # try to relaunch dead module (like mongo one when mongo is not available at startup for example)
             self.check_and_del_zombie_modules()
@@ -323,7 +323,7 @@ class Webui_broker(BaseModule, Daemon):
                 self.wait_for_no_readers()
                 # DBG: time_waiting_no_readers += time.time() - t0
                 try:
-                    # print "Got data lock, manage brok"
+                    # logger.debug("Got data lock, manage brok")
                     # DBG: t0 = time.time()
                     self.rg.manage_brok(b)
                     # DBG: times[b.type] += time.time() - t0
@@ -332,7 +332,7 @@ class Webui_broker(BaseModule, Daemon):
                         try:
                             mod.manage_brok(b)
                         except Exception, exp:
-                            print exp.__dict__
+                            logger.debug(exp.__dict__)
                             logger.warning("[%s] The mod %s raise an exception: %s, I'm tagging it to restart later" % (self.name, mod.get_name(), str(exp)))
                             logger.debug("[%s] Exception type: %s" % (self.name, type(exp)))
                             logger.debug("Back trace of this kill: %s" % (traceback.format_exc()))
@@ -353,17 +353,17 @@ class Webui_broker(BaseModule, Daemon):
                     self.global_lock.release()
 
             # DBG: t2 = time.time()
-            # DBG: print "WEBUI :: MANAGE ALL IN ", t2 - t1
-            # DBG: print '"WEBUI: in Waiting no readers', time_waiting_no_readers
-            # DBG: print 'WEBUI in preparing broks', time_preparing
-            # DBG: print "WEBUI And in times:"
+            # DBG: logger.debug("WEBUI :: MANAGE ALL IN ", t2 - t1)
+            # DBG: logger.debug('"WEBUI: in Waiting no readers', time_waiting_no_readers)
+            # DBG: logger.debug('WEBUI in preparing broks', time_preparing)
+            # DBG: logger.debug("WEBUI And in times:")
             # DBG: for (k, v) in times.iteritems():
-            # DBG:     print "WEBUI\t %s: %s" % (k, v)
-            # DBG: print "WEBUI\nWEBUI\n"
+            # DBG:     logger.debug("WEBUI\t %s: %s" % (k, v))
+            # DBG: logger.debug("WEBUI\nWEBUI\n")
 
 
     def load_plugin(self, fdir, plugin_dir):
-            print "Try to load", fdir, "from", plugin_dir
+            logger.debug("Try to load", fdir, "from", plugin_dir)
             try:
                 logger.debug("Loading WebUI module %s from %s" % (fdir, plugin_dir))
                 # Put the full qualified path of the module we want to load
@@ -374,11 +374,11 @@ class Webui_broker(BaseModule, Daemon):
                 m_dir = os.path.abspath(os.path.dirname(m.__file__))
                 sys.path.append(m_dir)
 
-                print "Loaded module m", m
+                logger.debug("Loaded module m", m)
                 logger.debug("Loaded WebUI module %s" % (m))
-                print m.__file__
+                logger.debug(m.__file__)
                 pages = m.pages
-                print "Try to load pages", pages
+                logger.debug("Try to load pages", pages)
                 for (f, entry) in pages.items():
                     routes = entry.get('routes', None)
                     v = entry.get('view', None)
@@ -390,14 +390,14 @@ class Webui_broker(BaseModule, Daemon):
 
                     # IMPORTANT: apply VIEW BEFORE route!
                     if v:
-                        print "Link function", f, "and view", v
+                        logger.debug("Link function", f, "and view", v)
                         f = view(v)(f)
 
                     # Maybe there is no route to link, so pass
                     if routes:
                         for r in routes:
                             method = entry.get('method', 'GET')
-                            print "link function", f, "and route", r, "method", method
+                            logger.debug("link function", f, "and route", r, "method", method)
 
                             # Ok, we will just use the lock for all
                             # plugin page, but not for static objects
@@ -420,7 +420,7 @@ class Webui_broker(BaseModule, Daemon):
                                 self.widgets[place] = []
                             w = {'widget_name': widget_name, 'widget_desc': widget_desc, 'base_uri': routes[0],
                                  'widget_picture': widget_picture}
-                            print "Loading widget", w
+                            logger.debug("Loading widget", w)
                             self.widgets[place].append(w)
 
                 # And we add the views dir of this plugin in our TEMPLATE
@@ -442,7 +442,7 @@ class Webui_broker(BaseModule, Daemon):
     # directory. Each one can have a page, views and htdocs dir that we must
     # route correctly
     def load_plugins(self, plugin_dir):
-        print "Loading plugin directory: %s" % plugin_dir
+        logger.debug("Loading plugin directory: %s" % plugin_dir)
 
         # Load plugin directories
         if not os.path.exists(plugin_dir):
@@ -451,7 +451,7 @@ class Webui_broker(BaseModule, Daemon):
         plugin_dirs = [fname for fname in os.listdir(plugin_dir)
                        if os.path.isdir(os.path.join(plugin_dir, fname))]
 
-        print "Plugin dirs", plugin_dirs
+        logger.debug("Plugin dirs", plugin_dirs)
         sys.path.append(plugin_dir)
         # We try to import them, but we keep only the one of
         # our type
@@ -462,10 +462,10 @@ class Webui_broker(BaseModule, Daemon):
 
     def add_static(self, fdir, m_dir):
         static_route = '/static/' + fdir + '/:path#.+#'
-        print "Declaring static route", static_route
+        logger.debug("Declaring static route", static_route)
 
         def plugin_static(path):
-            print "Ask %s and give %s" % (path, os.path.join(m_dir, 'htdocs'))
+            logger.debug("Ask %s and give %s" % (path, os.path.join(m_dir, 'htdocs')))
             return static_file(path, root=os.path.join(m_dir, 'htdocs'))
         route(static_route, callback=plugin_static)
 
@@ -515,7 +515,7 @@ class Webui_broker(BaseModule, Daemon):
 
     # We want a lock manager version of the plugin functions
     def lockable_function(self, f):
-        print "We create a lock version of", f
+        logger.debug("We create a lock version of", f)
 
         def lock_version(**args):
             self.wait_for_no_writers()
@@ -523,14 +523,14 @@ class Webui_broker(BaseModule, Daemon):
             try:
                 return f(**args)
             finally:
-                print "rendered in", time.time() - t
+                logger.debug("rendered in", time.time() - t)
                 # We can remove us as a reader from now. It's NOT an atomic operation
                 # so we REALLY not need a lock here (yes, I try without and I got
                 # a not so accurate value there....)
                 self.global_lock.acquire()
                 self.nb_readers -= 1
                 self.global_lock.release()
-        print "The lock version is", lock_version
+        logger.debug("The lock version is", lock_version)
         return lock_version
 
 
@@ -561,11 +561,11 @@ class Webui_broker(BaseModule, Daemon):
 
 
     def check_auth(self, user, password):
-        print "Checking auth of", user  # , password
+        logger.debug("Checking auth of", user  # , password)
         c = self.datamgr.get_contact(user)
-        print "Got", c
+        logger.debug("Got", c)
         if not c:
-            print "Warning: You need to have a contact having the same name as your user %s" % user
+            logger.debug("Warning: You need to have a contact having the same name as your user %s" % user)
 
         # TODO: do not forgot the False when release!
         is_ok = False  # (c is not None)
@@ -573,7 +573,7 @@ class Webui_broker(BaseModule, Daemon):
         for mod in self.modules_manager.get_internal_instances():
             try:
                 f = getattr(mod, 'check_auth', None)
-                print "Get check_auth", f, "from", mod.get_name()
+                logger.debug("Get check_auth", f, "from", mod.get_name())
                 if f and callable(f):
                     r = f(user, password)
                     if r:
@@ -581,7 +581,7 @@ class Webui_broker(BaseModule, Daemon):
                         # No need for other modules
                         break
             except Exception, exp:
-                print exp.__dict__
+                logger.debug(exp.__dict__)
                 logger.warning("[%s] The mod %s raise an exception: %s, I'm tagging it to restart later" % (self.name, mod.get_name(), str(exp)))
                 logger.debug("[%s] Exception type: %s" % (self.name, type(exp)))
                 logger.debug("Back trace of this kill: %s" % (traceback.format_exc()))
@@ -627,7 +627,7 @@ class Webui_broker(BaseModule, Daemon):
                     r = f(elt, graphstart, graphend, source)
                     uris.extend(r)
             except Exception, exp:
-                print exp.__dict__
+                logger.debug(exp.__dict__)
                 logger.warning("[%s] The mod %s raise an exception: %s, I'm tagging it to restart later" % (self.name, mod.get_name(), str(exp)))
                 logger.debug("[%s] Exception type: %s" % (self.name, type(exp)))
                 logger.debug("Back trace of this kill: %s" % (traceback.format_exc()))
@@ -651,18 +651,18 @@ class Webui_broker(BaseModule, Daemon):
 
         for mod in self.modules_manager.get_internal_instances():
             try:
-                print 'Try to get pref %s from %s' % (key, mod.get_name())
+                logger.debug('Try to get pref %s from %s' % (key, mod.get_name()))
                 f = getattr(mod, 'get_ui_common_preference', None)
                 if f and callable(f):
                     r = f(key)
                     return r
             except Exception, exp:
-                print exp.__dict__
+                logger.debug(exp.__dict__)
                 logger.warning("[%s] The mod %s raise an exception: %s, I'm tagging it to restart later" % (self.name, mod.get_name(), str(exp)))
                 logger.debug("[%s] Exception type: %s" % (self.name, type(exp)))
                 logger.debug("Back trace of this kill: %s" % (traceback.format_exc()))
                 self.modules_manager.set_to_restart(mod)
-        print 'get_common_preference :: Nothing return, I send none'
+        logger.debug('get_common_preference :: Nothing return, I send none')
         return default
 
 
@@ -681,18 +681,18 @@ class Webui_broker(BaseModule, Daemon):
 
         for mod in self.modules_manager.get_internal_instances():
             try:
-                print 'Try to get pref %s from %s' % (key, mod.get_name())
+                logger.debug('Try to get pref %s from %s' % (key, mod.get_name()))
                 f = getattr(mod, 'get_ui_user_preference', None)
                 if f and callable(f):
                     r = f(user, key)
                     return r
             except Exception, exp:
-                print exp.__dict__
+                logger.debug(exp.__dict__)
                 logger.warning("[%s] The mod %s raise an exception: %s, I'm tagging it to restart later" % (self.name, mod.get_name(), str(exp)))
                 logger.debug("[%s] Exception type: %s" % (self.name, type(exp)))
                 logger.debug("Back trace of this kill: %s" % (traceback.format_exc()))
                 self.modules_manager.set_to_restart(mod)
-        print 'get_user_preference :: Nothing return, I send non'
+        logger.debug('get_user_preference :: Nothing return, I send non')
         return default
 
 
@@ -704,10 +704,10 @@ class Webui_broker(BaseModule, Daemon):
             try:
                 f = getattr(mod, 'set_ui_user_preference', None)
                 if f and callable(f):
-                    print "Call user pref to module", mod.get_name()
+                    logger.debug("Call user pref to module", mod.get_name())
                     f(user, key, value)
             except Exception, exp:
-                print exp.__dict__
+                logger.debug(exp.__dict__)
                 logger.warning("[%s] The mod %s raise an exception: %s, I'm tagging it to restart later" % (self.name, mod.get_name(), str(exp)))
                 logger.debug("[%s] Exception type: %s" % (self.name, type(exp)))
                 logger.debug("Back trace of this kill: %s" % (traceback.format_exc()))
@@ -721,10 +721,10 @@ class Webui_broker(BaseModule, Daemon):
             try:
                 f = getattr(mod, 'set_ui_common_preference', None)
                 if f and callable(f):
-                    print "Call user pref to module", mod.get_name()
+                    logger.debug("Call user pref to module", mod.get_name())
                     f(key, value)
             except Exception, exp:
-                print exp.__dict__
+                logger.debug(exp.__dict__)
                 logger.warning("[%s] The mod %s raise an exception: %s, I'm tagging it to restart later" % (self.name, mod.get_name(), str(exp)))
                 logger.debug("[%s] Exception type: %s" % (self.name, type(exp)))
                 logger.debug("Back trace of this kill: %s" % (traceback.format_exc()))
@@ -748,7 +748,7 @@ class Webui_broker(BaseModule, Daemon):
                     r = f()
                     lst.append(r)
             except Exception, exp:
-                print exp.__dict__
+                logger.debug(exp.__dict__)
                 logger.warning("[%s] Warning: The mod %s raise an exception: %s, I'm tagging it to restart later" % (self.name, mod.get_name(), str(exp)))
                 logger.debug("[%s] Exception type: %s" % (self.name, type(exp)))
                 logger.debug("Back trace of this kill: %s" % (traceback.format_exc()))
