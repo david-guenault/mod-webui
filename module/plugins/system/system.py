@@ -24,6 +24,8 @@
 # along with Shinken.  If not, see <http://www.gnu.org/licenses/>.
 
 import time
+import os
+import sys
 
 from shinken.log import logger
 
@@ -49,30 +51,40 @@ params['logs_type'] = []
 params['logs_hosts'] = []
 params['logs_services'] = []
 
-import os,sys
-from config_parser import config_parser
-plugin_name = os.path.splitext(os.path.basename(__file__))[0]
-try:
-    currentdir = os.path.dirname(os.path.realpath(__file__))
-    configuration_file = "%s/%s" % (currentdir, 'plugin.cfg')
-    logger.debug("Plugin configuration file: %s" % (configuration_file))
-    scp = config_parser('#', '=')
-    params = scp.parse_config(configuration_file)
 
-    # mongo_host = params['mongo_host']
-    params['mongo_port'] = int(params['mongo_port'])
-    params['logs_limit'] = int(params['logs_limit'])
-    params['logs_type'] = [item.strip() for item in params['logs_type'].split(',')]
-    params['logs_hosts'] = [item.strip() for item in params['logs_hosts'].split(',')]
-    params['logs_services'] = [item.strip() for item in params['logs_services'].split(',')]
+def load_cfg():
+    global params
     
-    logger.debug("WebUI plugin '%s', configuration loaded." % (plugin_name))
-    logger.debug("Plugin configuration, database: %s (%s)" % (params['mongo_host'], params['mongo_port']))
-    logger.debug("Plugin configuration, fetching: %d %s" % (params['logs_limit'], params['logs_type']))
-    logger.debug("Plugin configuration, hosts: %s" % (params['logs_hosts']))
-    logger.debug("Plugin configuration, services: %s" % (params['logs_services']))
-except Exception, exp:
-    logger.warning("WebUI plugin '%s', configuration file (%s) not available: %s" % (plugin_name, configuration_file, str(exp)))
+    plugin_name = os.path.splitext(os.path.basename(__file__))[0]
+    try:
+        currentdir = os.path.dirname(os.path.realpath(__file__))
+        configuration_file = "%s/%s" % (currentdir, 'plugin.cfg')
+        logger.debug("Plugin configuration file: %s" % (configuration_file))
+        scp = app.config_parser('#', '=')
+        params = scp.parse_config(configuration_file)
+
+        params['elts_per_page'] = int(params['elts_per_page'])
+        # mongo_host = params['mongo_host']
+        params['mongo_port'] = int(params['mongo_port'])
+        params['logs_limit'] = int(params['logs_limit'])
+        params['logs_type'] = [item.strip() for item in params['logs_type'].split(',')]
+        params['logs_hosts'] = [item.strip() for item in params['logs_hosts'].split(',')]
+        params['logs_services'] = [item.strip() for item in params['logs_services'].split(',')]
+        
+        logger.debug("WebUI plugin '%s', configuration loaded." % (plugin_name))
+        logger.debug("Plugin configuration, database: %s (%s)" % (params['mongo_host'], params['mongo_port']))
+        logger.debug("Plugin configuration, fetching: %d %s" % (params['logs_limit'], params['logs_type']))
+        logger.debug("Plugin configuration, hosts: %s" % (params['logs_hosts']))
+        logger.debug("Plugin configuration, services: %s" % (params['logs_services']))
+        
+        logger.debug("WebUI plugin '%s', configuration loaded." % (plugin_name))
+        logger.debug("Plugin configuration, elts_per_page: %d" % (params['elts_per_page']))
+        
+        return True
+    except Exception, exp:
+        logger.warning("WebUI plugin '%s', configuration file (%s) not available: %s" % (plugin_name, configuration_file, str(exp)))
+        return False
+
 
 
 def checkauth():
