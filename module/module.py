@@ -53,7 +53,7 @@ from shinken.util import safe_print, to_bool
 # Local import
 from shinken.misc.datamanager import datamgr
 from helper import helper
-from config_parser import config_parser
+from config_parser import config_parser 
 
 # Debug
 import shinken.webui.bottlewebui as bottle
@@ -204,7 +204,7 @@ class Webui_broker(BaseModule, Daemon):
         self.datamgr = datamgr
         datamgr.load(self.rg)
         self.helper = helper
-	self.config_parser = config_parser
+        self.config_parser = config_parser
 
         self.request = request
         self.response = response
